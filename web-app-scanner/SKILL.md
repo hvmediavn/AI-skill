@@ -1,12 +1,12 @@
 ---
 name: web-app-scanner
-description: "Authorized web application testing from the CLI. Subdomain enumeration (crt.sh / subfinder / DNS brute) with dangling-CNAME subdomain-takeover detection to map the whole estate, per-host passive recon (security headers / cookies / TLS / advanced CORS bypass tests), non-destructive active vulnerability checks (exposed .git/.env, reflected XSS, open redirect, path traversal, header injection, SSTI, SSRF-to-metadata, directory listing) with link crawling, optional nuclei & ffuf, and guarded sqlmap SQL injection testing — one orchestrated whole-system scan into a severity-ranked findings report."
+description: "Authorized web application testing from the CLI, including local pre-deploy source/config audits, subdomain enumeration, passive recon, non-destructive active vulnerability checks, and guarded SQL injection testing. Use for reviewing deploy secrets, frontend build artifacts and source maps, admin defaults, static XSS sinks, or an authorized live web estate."
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Web App Scanner
 
-> CLI web application assessment for authorized targets. Subdomain enumeration to map the whole estate, per-host passive recon (headers, cookies, TLS, CORS, tech disclosure) with zero dependencies, non-destructive active vuln checks (exposed .git/.env, reflected XSS, open redirect, path traversal, dir listing) with crawling, plus optional nuclei/ffuf and guarded SQL injection testing (sqlmap).
+> CLI web application assessment for authorized targets. Includes a read-only local pre-deploy audit for secrets, frontend builds, source maps, admin defaults, and static XSS sinks, plus subdomain mapping, passive recon, non-destructive active checks, optional nuclei/ffuf, and guarded SQL injection testing.
 
 > **Language rule**: All skill instructions use English.
 > **Final summary presented to the user must be in Vietnamese.**
@@ -40,6 +40,8 @@ Operates under [MASTER_POLICY.md](../MASTER_POLICY.md) §1-§2.
 
 ```powershell
 python web-app-scanner\scripts\scan_all.py --check
+python web-app-scanner\scripts\deploy_audit.py --check
+python web-app-scanner\scripts\brain_python_library.py --check
 python web-app-scanner\scripts\subdomain_enum.py --check
 python web-app-scanner\scripts\web_recon.py --check
 python web-app-scanner\scripts\sqli_test.py --check
@@ -50,6 +52,54 @@ Native recon + subdomain enum + active checks need only Python. Optional tools:
 - **nuclei** — https://github.com/projectdiscovery/nuclei (single binary in PATH)
 - **ffuf** — https://github.com/ffuf/ffuf (single binary in PATH)
 - **sqlmap** — `pip install sqlmap` (or clone the repo)
+
+---
+
+## Pre-deploy source audit (local, read-only)
+
+Run this against the application source tree before deploying:
+
+```powershell
+python web-app-scanner\scripts\deploy_audit.py C:\path\to\project --out output\deploy-audit --fail-on high
+```
+
+The audit writes `FINDINGS.md` and `findings.json` and checks:
+- Deploy `.env*` values for empty/default/example secrets, values shorter than 32 characters, repeating or sequential patterns, low estimated randomness, and weak or empty credentials embedded in common database/service URLs. Reports include only the key name, component, length, and reason; secret values are never emitted.
+- Frontend projects for a missing or empty production build (`dist`, `build`, `.next`, or `out`), emitted `.map` files, `sourceMappingURL` references, and production-effective Vite/Webpack/Next/Vue/Angular/CRA settings that enable source maps, including hidden/inline and Angular object forms. Development-only settings are ignored.
+- Admin credentials in env and seed/config files for common defaults, password=username, short passwords, and weak character variety. Hashes and runtime secret references are not treated as plaintext passwords.
+- Client-side XSS risk sinks such as `dangerouslySetInnerHTML`, `innerHTML=`, `v-html`, `document.write`, Angular sanitizer bypasses, dynamic `eval`, and unescaped template output.
+
+`--fail-on high` returns exit code 1 after writing reports when a high or critical finding exists, which is suitable for a deployment gate. Omit it for report-only mode.
+
+Static XSS findings are marked `review-required`: trace whether untrusted data reaches the sink. Confirm runtime reflected XSS separately with the authorized active checks below.
+
+---
+
+## Reusable Python library
+
+Before writing a one-off Python helper, search the in-project archive:
+
+```powershell
+python web-app-scanner\scripts\brain_python_library.py search "source map"
+python web-app-scanner\scripts\brain_python_library.py search xss --json
+python web-app-scanner\scripts\brain_python_library.py search admin --status all
+python web-app-scanner\scripts\brain_python_library.py verify
+```
+
+The bundled catalog is `python-library\index.json`; copied source is under `python-library\files\`. Search results include a generated purpose description, categories, imports, public symbols, safety signals, and one of these reuse levels:
+
+- `direct` — has a CLI/main guard and no detected target-specific settings.
+- `adapt` — useful code that needs paths, arguments, or integration adjusted.
+- `reference-only` — contains active networking or destructive capabilities; inspect and extract logic rather than running it unchanged.
+- `do-not-run` — metadata only; the source was not copied because static analysis found a hardcoded sensitive value, invalid syntax, or a module-scope call outside the conservative pure-data allowlist.
+
+Never execute a result solely because it appears in the catalog. Read the file, confirm authorization for any target interaction, and prefer extracting a function over launching a historical scratch script. To refresh the bundled archive from the local Antigravity brain:
+
+```powershell
+python web-app-scanner\scripts\brain_python_library.py sync
+```
+
+The sync parser never imports source files. Run `verify` after a refresh to validate the schema, file set, and every copied SHA-256. See [references/brain_python_library.md](references/brain_python_library.md) for schema and safety rules.
 
 ---
 
@@ -136,6 +186,8 @@ Raise depth when needed: `--level 3 --risk 2`.
 ## Step 5 — Report & remediate
 
 `scan_all.py` writes `output\scan\FINDINGS_ALL.md` + `findings_all.json` — a severity-ranked, per-host roll-up across the whole estate (plus per-host `FINDINGS.md` under `output\scan\hosts\`). A single-host `web_recon.py` run writes `FINDINGS.md` + `findings.json`. For SQLi, review sqlmap's session output for injectable parameters, DBMS, and technique.
+
+The local pre-deploy audit writes `output\deploy-audit\FINDINGS.md` + `findings.json`. Treat static source findings as review leads and build-artifact findings as deploy blockers according to the selected `--fail-on` threshold.
 
 Add to the defensive fixes below:
 - **Exposed `.git`/`.env`/backups** → remove from web root; rotate any leaked secrets; block dotfiles at the web server.

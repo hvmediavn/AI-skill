@@ -2,6 +2,16 @@
 
 A lightweight OWASP-aligned checklist for authorized web assessments.
 
+## Pre-deploy source audit (covered by deploy_audit.py)
+- [ ] Production `.env*` secret-like values are unique per environment, generated randomly, at least 32 characters, and not repeating/sequential/predictable; no placeholder or `.env.example` value is reused, including empty or weak passwords embedded in database/service URLs.
+- [ ] Audit output contains only secret key names, lengths, and reasons — never raw secret/password values.
+- [ ] A non-empty frontend production build exists (`dist`, `build`, `.next`, or `out`) before release, including projects that use custom build scripts.
+- [ ] Production-effective source maps are disabled in framework/bundler config, including hidden/inline and object-valued settings; development-only settings are separated, and deploy artifacts contain no `.map` files or `sourceMappingURL` references.
+- [ ] Admin seed/config/env credentials are not defaults, do not match the username, and meet the application's password and MFA policy.
+- [ ] Static XSS sinks are reviewed for untrusted data flow and contextual encoding/sanitization; confirm runtime behavior with the authorized active checks.
+
+Run `python web-app-scanner\scripts\deploy_audit.py <project> --out output\deploy-audit --fail-on high` for a CI/deploy gate.
+
 ## Attack surface (covered by subdomain_enum.py / scan_all.py)
 - [ ] Enumerate subdomains (crt.sh + subfinder, optional DNS brute) and identify web-alive hosts.
 - [ ] Subdomain takeover — dangling CNAME to an unclaimed GitHub Pages/S3/Heroku/Azure/Fastly/Shopify service (`--takeover`).

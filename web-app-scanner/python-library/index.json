@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-22T00:00:00Z",
+  "source": "Antigravity brain Python archive",
+  "safety": "Files are statically parsed and never imported. Blocked files are metadata-only. The index never stores Python string literal values.",
+  "stats": {
+    "scanned": 0,
+    "copied": 0,
+    "blocked": 0
+  },
+  "entries": []
+}

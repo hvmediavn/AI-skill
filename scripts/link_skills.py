@@ -19,13 +19,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-WORKSPACE = Path("c:/Users/NAM/Code/skill").resolve()
+WORKSPACE = Path(__file__).resolve().parents[1]
+USER_HOME = Path.home()
 
 # Link skills into every config root below.
 CONFIG_ROOTS = [
-    Path("C:/Users/NAM/.gemini/config/skills"),
-    Path("C:/Users/NAM/.gemini/skills"),
-    Path("C:/Users/NAM/.claude/skills"),
+    USER_HOME / ".gemini" / "config" / "skills",
+    USER_HOME / ".gemini" / "skills",
+    USER_HOME / ".claude" / "skills",
+    # Cline reads global skills from ~/.agents/skills (see vercel-labs/skills:
+    # agent "cline" -> globalSkillsDir ~/.agents/skills).
+    USER_HOME / ".agents" / "skills",
 ]
 
 # List of skills to link from the workspace to the global config skills folder
